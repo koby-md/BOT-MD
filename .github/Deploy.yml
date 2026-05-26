@@ -1,0 +1,51 @@
+name: Deploy
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  schedule:
+    - cron: "0 */6 * * *"  # كيعاود يخدم كل 6 سوايع
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    # هاد السطر كيعطي وقت محدد للـ Job كامل باش يطفى بزز
+    timeout-minutes: 350 
+
+    permissions:
+      id-token: write
+      contents: read
+      actions: write
+
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v4
+
+      - name: Install Node.js 20
+        uses: actions/setup-node@v3 # هادي أحسن وأسرع من curl فـ GitHub Actions
+        with:
+          node-version: 20
+
+      - name: Cache node_modules
+        uses: actions/cache@v3
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.11.0
+        with:
+          access_token: ${{ github.token }} # استعمل هادي أحسن
+
+      - name: Start Project
+        # هنا كنقولو ليه طفي هاد المرحلة بزز قبل ما يوصل السقف ديال GitHub
+        timeout-minutes: 345 
+        run: npm run start
