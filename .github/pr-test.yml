@@ -1,35 +1,51 @@
-name: test
+name: Deploy
 
 on:
+  push:
+    branches: [master]
   pull_request:
-    types: [opened, synchronize]
+    branches: [master]
+  schedule:
+    - cron: "0 */6 * * *"  # كيعاود يخدم كل 6 سوايع
 
 jobs:
-  check-conflicts:
+  deploy:
+    name: Deploy
     runs-on: ubuntu-latest
+    # هاد السطر كيعطي وقت محدد للـ Job كامل باش يطفى بزز
+    timeout-minutes: 350 
+
+    permissions:
+      id-token: write
+      contents: read
+      actions: write
+
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      - name: Clone repository
+        uses: actions/checkout@v4
 
-      - name: Check for merge conflicts
-        id: merge
-        run: |
-          git fetch origin main
-          git merge --no-commit --no-ff origin/main || echo "::set-output name=conflict::true"
-
-      - name: Comment
-        if: steps.merge.outputs.conflict != 'true'
-        uses: actions/github-script@v6
+      - name: Install Node.js 20
+        uses: actions/setup-node@v3 # هادي أحسن وأسرع من curl فـ GitHub Actions
         with:
-          script: |
-            const prNumber = context.payload.pull_request.number;
-            github.rest.issues.createComment({
-              issue_number: prNumber,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: "gracias por tu contribución!"
-            });
+          node-version: 20
 
-      - name: Fail if there are conflicts
-        if: steps.merge.outputs.conflict == 'true'
-        run: exit 1
+      - name: Cache node_modules
+        uses: actions/cache@v3
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.11.0
+        with:
+          access_token: ${{ github.token }} # استعمل هادي أحسن
+
+      - name: Start Project
+        # هنا كنقولو ليه طفي هاد المرحلة بزز قبل ما يوصل السقف ديال GitHub
+        timeout-minutes: 345 
+        run: npm run start
